@@ -54,15 +54,14 @@ module Data.Aeson.Typed
   )
 where
 
-import Control.Applicative ((<|>))
 import qualified Data.Aeson.Types as Aeson
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
 import Data.Kind (Type)
 import Data.Proxy (Proxy (..))
 import Data.Scientific (Scientific)
-import qualified Data.Text as Text
 import Data.Text (Text)
+import qualified Data.Text as Text
 import Data.Vector (Vector)
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
 import Prelude hiding (null)
@@ -83,7 +82,6 @@ data JSONType
 
 -- | Isomorphism class.
 class ISO (a :: Type) (t :: JSONType) | a -> t where
-
   toTypedValue :: a -> TypedValue t
 
   fromTypedValue :: TypedValue t -> a
@@ -142,10 +140,10 @@ unsafeFromNumberValue = \case
   Aeson.Number n -> n
   _ -> error "unsafeFromNumberValue"
 
-array :: Vector (TypedValue t) -> TypedValue ('Array t)
+array :: Vector (TypedValue t) -> TypedValue ( 'Array t)
 array = TypedValue . Aeson.Array . fmap unTypedValue
 
-getArray :: TypedValue ('Array t) -> Vector (TypedValue t)
+getArray :: TypedValue ( 'Array t) -> Vector (TypedValue t)
 getArray = fmap TypedValue . unsafeFromArrayValue . unTypedValue
 
 unsafeFromArrayValue :: Aeson.Value -> Vector Aeson.Value
@@ -153,15 +151,15 @@ unsafeFromArrayValue = \case
   Aeson.Array arr -> arr
   _ -> error "unsafeFromArrayValue"
 
-emptyObject :: TypedValue ('Object '[])
+emptyObject :: TypedValue ( 'Object '[])
 emptyObject = TypedValue (Aeson.Object HashMap.empty)
 
 insert ::
   forall s t fields.
   KnownSymbol s =>
   TypedValue t ->
-  TypedValue ('Object fields) ->
-  TypedValue ('Object ('(s, t) ': fields))
+  TypedValue ( 'Object fields) ->
+  TypedValue ( 'Object ('(s, t) ': fields))
 insert (TypedValue value) (TypedValue object) =
   TypedValue . Aeson.Object $
     HashMap.insert
@@ -172,7 +170,7 @@ insert (TypedValue value) (TypedValue object) =
 getKey ::
   forall s fields.
   (KnownSymbol s) =>
-  TypedValue ('Object fields) ->
+  TypedValue ( 'Object fields) ->
   TypedValue (Lookup s fields)
 getKey (TypedValue object) =
   TypedValue (unsafeFromObjectValue object HashMap.! symbolText (Proxy @s))
@@ -240,21 +238,21 @@ instance FromTypedValue 'String where
     Aeson.String s -> pure (string s)
     _ -> Left "not a string"
 
-instance FromTypedValue t => FromTypedValue ('Array t) where
+instance FromTypedValue t => FromTypedValue ( 'Array t) where
   parseTypedValue _ = \case
     Aeson.Array arr -> array <$> traverse (parseTypedValue (Proxy @t)) arr
     _ -> Left "not an array"
 
-instance FromTypedValueObject fields => FromTypedValue ('Object fields) where
+instance FromTypedValueObject fields => FromTypedValue ( 'Object fields) where
   parseTypedValue _ = \case
     Aeson.Object obj ->
       TypedValue . Aeson.Object <$> parseTypedValueObject (Proxy @fields) obj HashMap.empty
     _ -> Left "not an object"
 
-instance (FromTypedValue x, FromTypedValue y) => FromTypedValue ('Or x y) where
+instance (FromTypedValue x, FromTypedValue y) => FromTypedValue ( 'Or x y) where
   parseTypedValue _ value =
     fmap coerceTypedValue (parseTypedValue (Proxy @x) value)
-      <|> fmap coerceTypedValue (parseTypedValue (Proxy @y) value)
+      <> fmap coerceTypedValue (parseTypedValue (Proxy @y) value)
 
 class FromTypedValueObject (fields :: [(Symbol, JSONType)]) where
   parseTypedValueObject ::
